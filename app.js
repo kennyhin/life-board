@@ -27,6 +27,7 @@
     form: document.getElementById("add-form"),
     text: document.getElementById("todo-text"),
     deadline: document.getElementById("todo-deadline"),
+    noDeadline: document.getElementById("no-deadline"),
     voiceBtn: document.getElementById("voice-btn"),
     voiceLabel: document.getElementById("voice-label"),
     voiceHint: document.getElementById("voice-hint"),
@@ -48,21 +49,27 @@
   let saveTimer = null;
   let pollTimer = null;
   let syncing = false;
+  let dragState = null;
 
   init();
 
   async function init() {
     els.deadline.value = todayISO();
     els.deadline.min = todayISO();
+    syncDeadlineField();
 
     els.openAdd.addEventListener("click", () => openSheet());
     els.closeSheet.addEventListener("click", closeSheet);
     els.cancelAdd.addEventListener("click", closeSheet);
     els.backdrop.addEventListener("click", closeSheet);
     els.form.addEventListener("submit", onSubmit);
+    els.noDeadline.addEventListener("change", syncDeadlineField);
     els.voiceBtn.addEventListener("click", toggleVoice);
     els.archiveToggle.addEventListener("click", toggleArchive);
     els.clearArchive.addEventListener("click", clearArchive);
+    window.addEventListener("pointermove", onDragMove);
+    window.addEventListener("pointerup", onDragEnd);
+    window.addEventListener("pointercancel", onDragEnd);
 
     document.addEventListener("keydown", (e) => {
       if (e.key === "Escape" && !els.sheet.hidden) closeSheet();
@@ -240,9 +247,30 @@
       : `t_${Date.now()}_${Math.random().toString(36).slice(2, 8)}`;
   }
 
+  function syncDeadlineField() {
+    const none = els.noDeadline.checked;
+    els.deadline.disabled = none;
+    els.deadline.required = false;
+    if (none) {
+      els.deadline.value = "";
+    } else if (!els.deadline.value) {
+      els.deadline.value = todayISO();
+    }
+  }
+
   function openSheet(prefill = {}) {
     els.form.reset();
-    els.deadline.value = prefill.deadline || todayISO();
+    if (prefill.deadline) {
+      els.noDeadline.checked = false;
+      els.deadline.value = prefill.deadline;
+    } else if (prefill.deadline === null) {
+      els.noDeadline.checked = true;
+      els.deadline.value = "";
+    } else {
+      els.noDeadline.checked = false;
+      els.deadline.value = todayISO();
+    }
+    syncDeadlineField();
     els.text.value = prefill.text || "";
     const cat = prefill.category || "personal";
     const radio = els.form.querySelector(`input[name="category"][value="${cat}"]`);
@@ -270,10 +298,14 @@
   function onSubmit(e) {
     e.preventDefault();
     const text = els.text.value.trim();
-    const deadline = els.deadline.value;
+    const deadline = els.noDeadline.checked ? null : els.deadline.value || null;
     const category = selectedCategory();
 
-    if (!text || !deadline) return;
+    if (!text) return;
+    if (!els.noDeadline.checked && !deadline) {
+      showToast("Pick a deadline or choose No deadline");
+      return;
+    }
 
     todos.unshift({
       id: uid(),
@@ -295,7 +327,7 @@
     if (listening || wantListening) {
       stopVoice(true);
       els.voiceHint.textContent =
-        "Stopped. Edit the text if needed, set a deadline, then Save.";
+        "Stopped. Edit if needed, then Save.";
       els.voiceHint.classList.remove("is-error");
       return;
     }
@@ -337,7 +369,7 @@
             els.text.value = finalVoiceText;
             stopVoice(true);
             els.voiceHint.textContent =
-              "Got it — set a deadline and tap Save, or keep editing.";
+              "Got it — adjust details if needed, then tap Save.";
             els.voiceHint.classList.remove("is-error");
             return;
           }
@@ -353,7 +385,7 @@
         finalVoiceText = cleaned;
         stopVoice(true);
         els.voiceHint.textContent =
-          "Got it — set a deadline and tap Save, or keep editing.";
+          "Got it — adjust details if needed, then tap Save.";
         els.voiceHint.classList.remove("is-error");
         return;
       }
@@ -466,6 +498,7 @@
   }
 
   function deadlineStatus(deadline) {
+    if (!deadline) return "none";
     const today = todayISO();
     if (deadline < today) return "overdue";
     if (deadline === today) return "due-soon";
@@ -480,6 +513,7 @@
   }
 
   function formatDeadline(deadline) {
+    if (!deadline) return "No deadline";
     const [y, m, d] = deadline.split("-").map(Number);
     const date = new Date(y, m - 1, d);
     const today = todayISO();
@@ -498,8 +532,76 @@
   }
 
   function sortActive(a, b) {
-    if (a.deadline !== b.deadline) return a.deadline.localeCompare(b.deadline);
+    const aDead = a.deadline || "9999-12-31";
+    const bDead = b.deadline || "9999-12-31";
+    if (aDead !== bDead) return aDead.localeCompare(bDead);
     return b.createdAt - a.createdAt;
+  }
+
+  function moveTodoCategory(id, category) {
+    const todo = todos.find((t) => t.id === id);
+    if (!todo || todo.archived || !CATEGORIES[category]) return;
+    if (todo.category === category) return;
+    todo.category = category;
+    queueSave();
+    showToast(`Moved to ${CATEGORIES[category].short}`);
+  }
+
+  function onDragStart(e, card) {
+    if (e.button != null && e.button !== 0) return;
+    const handle = e.target.closest(".drag-handle");
+    if (!handle) return;
+    e.preventDefault();
+    const id = card.dataset.id;
+    dragState = {
+      id,
+      pointerId: e.pointerId,
+      originX: e.clientX,
+      originY: e.clientY,
+      active: false,
+    };
+    handle.setPointerCapture?.(e.pointerId);
+  }
+
+  function onDragMove(e) {
+    if (!dragState) return;
+    const dx = e.clientX - dragState.originX;
+    const dy = e.clientY - dragState.originY;
+    if (!dragState.active && Math.hypot(dx, dy) < 8) return;
+
+    if (!dragState.active) {
+      dragState.active = true;
+      document.body.classList.add("is-dragging-todo");
+      const card = document.querySelector(`[data-id="${dragState.id}"]`);
+      card?.classList.add("is-dragging");
+    }
+
+    document.querySelectorAll(".column").forEach((col) => {
+      col.classList.remove("is-drop-target");
+    });
+    const el = document.elementFromPoint(e.clientX, e.clientY);
+    const column = el?.closest?.(".column");
+    if (column) column.classList.add("is-drop-target");
+  }
+
+  function onDragEnd(e) {
+    if (!dragState) return;
+    const { id, active } = dragState;
+    const card = document.querySelector(`[data-id="${id}"]`);
+    card?.classList.remove("is-dragging");
+    document.body.classList.remove("is-dragging-todo");
+    document.querySelectorAll(".column").forEach((col) => {
+      col.classList.remove("is-drop-target");
+    });
+
+    if (active) {
+      const el = document.elementFromPoint(e.clientX, e.clientY);
+      const column = el?.closest?.(".column");
+      const category = column?.dataset?.category;
+      if (category) moveTodoCategory(id, category);
+    }
+
+    dragState = null;
   }
 
   function render() {
@@ -544,10 +646,17 @@
         ? "is-overdue"
         : !isArchive && status === "due-soon"
           ? "is-due-soon"
-          : "";
+          : status === "none"
+            ? "is-none"
+            : "";
+
+    const dragHandle = isArchive
+      ? ""
+      : `<button type="button" class="drag-handle" aria-label="Drag to another category" title="Drag to another category">⋮⋮</button>`;
 
     return `
       <article class="card ${statusClass}" data-id="${todo.id}">
+        ${dragHandle}
         <button
           type="button"
           class="check"
@@ -586,6 +695,11 @@
           if (action === "delete") deleteTodo(id);
         });
       });
+
+      const handle = card.querySelector(".drag-handle");
+      if (handle) {
+        handle.addEventListener("pointerdown", (e) => onDragStart(e, card));
+      }
     });
   }
 

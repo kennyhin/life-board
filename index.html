@@ -99,10 +99,16 @@
         </div>
       </fieldset>
 
-      <label class="field">
-        <span class="field-label">Deadline</span>
-        <input type="date" id="todo-deadline" name="deadline" required />
-      </label>
+      <div class="field">
+        <div class="field-label-row">
+          <span class="field-label">Deadline</span>
+          <label class="inline-check">
+            <input type="checkbox" id="no-deadline" />
+            <span>No deadline</span>
+          </label>
+        </div>
+        <input type="date" id="todo-deadline" name="deadline" />
+      </div>
 
       <div class="voice-block">
         <button type="button" class="btn btn-voice" id="voice-btn" aria-pressed="false">

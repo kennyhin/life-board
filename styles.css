@@ -229,7 +229,7 @@ button {
 .card {
   position: relative;
   display: grid;
-  grid-template-columns: auto 1fr auto;
+  grid-template-columns: auto auto 1fr auto;
   gap: 0.7rem;
   align-items: start;
   padding: 0.9rem 0.85rem;
@@ -239,6 +239,10 @@ button {
   box-shadow: 0 8px 20px rgba(22, 36, 28, 0.05);
   animation: card-in 0.35s ease both;
   transition: transform 0.2s ease, opacity 0.25s ease, box-shadow 0.2s ease;
+}
+
+.card:not(:has(.drag-handle)) {
+  grid-template-columns: auto 1fr auto;
 }
 
 .card:hover {
@@ -251,12 +255,60 @@ button {
   transform: translateY(8px) scale(0.98);
 }
 
+.card.is-dragging {
+  opacity: 0.45;
+  transform: scale(0.98);
+  box-shadow: none;
+  pointer-events: none;
+}
+
 .card.is-overdue {
   border-color: rgba(163, 59, 45, 0.35);
 }
 
 .card.is-due-soon {
   border-color: rgba(154, 107, 18, 0.4);
+}
+
+.drag-handle {
+  width: 1.5rem;
+  height: 1.5rem;
+  margin-top: 0.05rem;
+  border-radius: 0.45rem;
+  color: var(--muted);
+  font-size: 0.85rem;
+  letter-spacing: -0.12em;
+  line-height: 1;
+  cursor: grab;
+  touch-action: none;
+  user-select: none;
+  display: grid;
+  place-items: center;
+}
+
+.drag-handle:hover {
+  background: var(--paper-2);
+  color: var(--ink);
+}
+
+.drag-handle:active,
+body.is-dragging-todo .drag-handle {
+  cursor: grabbing;
+}
+
+body.is-dragging-todo {
+  cursor: grabbing;
+  user-select: none;
+}
+
+.column.is-drop-target {
+  background: rgba(255, 252, 245, 0.9);
+  outline: 2px dashed rgba(22, 36, 28, 0.28);
+  outline-offset: -4px;
+}
+
+.card-list {
+  min-height: 4.5rem;
 }
 
 .check {
@@ -325,6 +377,39 @@ button {
 .deadline.is-due-soon {
   color: var(--warn);
   font-weight: 700;
+}
+
+.deadline.is-none {
+  color: var(--muted);
+  font-weight: 500;
+}
+
+.field-label-row {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 0.75rem;
+}
+
+.inline-check {
+  display: inline-flex;
+  align-items: center;
+  gap: 0.4rem;
+  font-size: 0.82rem;
+  font-weight: 600;
+  color: var(--ink-soft);
+  cursor: pointer;
+}
+
+.inline-check input {
+  width: 1rem;
+  height: 1rem;
+  accent-color: var(--ink);
+}
+
+input[type="date"]:disabled {
+  opacity: 0.45;
+  cursor: not-allowed;
 }
 
 .card-actions {
