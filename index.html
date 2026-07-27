@@ -1,0 +1,125 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover" />
+  <meta name="theme-color" content="#1f3d2f" />
+  <meta name="apple-mobile-web-app-capable" content="yes" />
+  <meta name="apple-mobile-web-app-status-bar-style" content="black-translucent" />
+  <title>Life Board</title>
+  <link rel="preconnect" href="https://fonts.googleapis.com" />
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
+  <link href="https://fonts.googleapis.com/css2?family=Fraunces:opsz,wght@9..144,500;9..144,700&family=Manrope:wght@400;500;600;700&display=swap" rel="stylesheet" />
+  <link rel="stylesheet" href="styles.css" />
+</head>
+<body>
+  <div class="bg-wash" aria-hidden="true"></div>
+
+  <header class="site-header">
+    <div class="brand-block">
+      <p class="brand">Life Board</p>
+      <p class="tagline">Personal · PE · Athletics</p>
+    </div>
+    <button type="button" class="btn btn-primary" id="open-add" aria-label="Add a todo">
+      <span class="btn-icon" aria-hidden="true">+</span>
+      Add
+    </button>
+  </header>
+
+  <main class="board" id="board">
+    <section class="column" data-category="personal" aria-labelledby="col-personal">
+      <header class="column-head">
+        <h2 id="col-personal">Personal</h2>
+        <span class="count" data-count="personal">0</span>
+      </header>
+      <div class="card-list" data-list="personal"></div>
+    </section>
+
+    <section class="column" data-category="pe" aria-labelledby="col-pe">
+      <header class="column-head">
+        <h2 id="col-pe">Physical Education</h2>
+        <span class="count" data-count="pe">0</span>
+      </header>
+      <div class="card-list" data-list="pe"></div>
+    </section>
+
+    <section class="column" data-category="athletics" aria-labelledby="col-athletics">
+      <header class="column-head">
+        <h2 id="col-athletics">Athletics</h2>
+        <span class="count" data-count="athletics">0</span>
+      </header>
+      <div class="card-list" data-list="athletics"></div>
+    </section>
+  </main>
+
+  <section class="archive" aria-labelledby="archive-title">
+    <button type="button" class="archive-toggle" id="archive-toggle" aria-expanded="false">
+      <span class="archive-label">
+        <span id="archive-title">Archived</span>
+        <span class="count" data-count="archive">0</span>
+      </span>
+      <span class="chevron" aria-hidden="true"></span>
+    </button>
+    <div class="archive-panel" id="archive-panel" hidden>
+      <div class="archive-list" data-list="archive"></div>
+      <button type="button" class="btn btn-ghost" id="clear-archive" hidden>Clear archive</button>
+    </div>
+  </section>
+
+  <div class="sheet-backdrop" id="sheet-backdrop" hidden></div>
+  <div class="sheet" id="add-sheet" role="dialog" aria-modal="true" aria-labelledby="sheet-title" hidden>
+    <div class="sheet-handle" aria-hidden="true"></div>
+    <header class="sheet-head">
+      <h2 id="sheet-title">New todo</h2>
+      <button type="button" class="icon-btn" id="close-sheet" aria-label="Close">×</button>
+    </header>
+
+    <form class="add-form" id="add-form">
+      <label class="field">
+        <span class="field-label">What needs doing?</span>
+        <textarea id="todo-text" name="text" rows="3" required placeholder="Grade unit plans, pick up dry cleaning…"></textarea>
+      </label>
+
+      <fieldset class="field category-field">
+        <legend class="field-label">Category</legend>
+        <div class="segmented" role="radiogroup" aria-label="Category">
+          <label class="segment">
+            <input type="radio" name="category" value="personal" checked />
+            <span>Personal</span>
+          </label>
+          <label class="segment">
+            <input type="radio" name="category" value="pe" />
+            <span>PE</span>
+          </label>
+          <label class="segment">
+            <input type="radio" name="category" value="athletics" />
+            <span>Athletics</span>
+          </label>
+        </div>
+      </fieldset>
+
+      <label class="field">
+        <span class="field-label">Deadline</span>
+        <input type="date" id="todo-deadline" name="deadline" required />
+      </label>
+
+      <div class="voice-block">
+        <button type="button" class="btn btn-voice" id="voice-btn" aria-pressed="false">
+          <span class="mic-dot" aria-hidden="true"></span>
+          <span id="voice-label">Speak to add</span>
+        </button>
+        <p class="voice-hint" id="voice-hint">Pick a category, then speak your todo. We'll fill the text for you.</p>
+      </div>
+
+      <div class="sheet-actions">
+        <button type="button" class="btn btn-ghost" id="cancel-add">Cancel</button>
+        <button type="submit" class="btn btn-primary">Save todo</button>
+      </div>
+    </form>
+  </div>
+
+  <div class="toast" id="toast" role="status" aria-live="polite" hidden></div>
+
+  <script src="app.js"></script>
+</body>
+</html>
