@@ -1,11 +1,19 @@
 (() => {
   const STORAGE_KEY = "life-board-todos-v1";
+  const META_KEY = "life-board-meta-v1";
+  // Same-origin on Netlify; GH Pages falls back to the Netlify API host below.
+  const SYNC_API_CANDIDATES = [
+    "/api/todos",
+    "https://life-board-kennyhin.netlify.app/api/todos",
+  ];
 
   const CATEGORIES = {
     personal: { label: "Personal", short: "Personal" },
     pe: { label: "Physical Education", short: "PE" },
     athletics: { label: "Athletics", short: "Athletics" },
   };
+
+  const STOP_PATTERN = /(?:^|[\s,.!?])stop(?:[\s,.!?]*)$/i;
 
   const SpeechRecognition =
     window.SpeechRecognition || window.webkitSpeechRecognition;
@@ -26,16 +34,24 @@
     archivePanel: document.getElementById("archive-panel"),
     clearArchive: document.getElementById("clear-archive"),
     toast: document.getElementById("toast"),
+    syncStatus: document.getElementById("sync-status"),
   };
 
-  let todos = loadTodos();
+  let todos = loadLocalTodos();
+  let updatedAt = loadLocalMeta().updatedAt || 0;
   let recognition = null;
   let listening = false;
+  let wantListening = false;
+  let finalVoiceText = "";
   let toastTimer = null;
+  let syncApi = null;
+  let saveTimer = null;
+  let pollTimer = null;
+  let syncing = false;
 
   init();
 
-  function init() {
+  async function init() {
     els.deadline.value = todayISO();
     els.deadline.min = todayISO();
 
@@ -52,6 +68,18 @@
       if (e.key === "Escape" && !els.sheet.hidden) closeSheet();
     });
 
+    window.addEventListener("storage", (e) => {
+      if (e.key === STORAGE_KEY || e.key === META_KEY) {
+        todos = loadLocalTodos();
+        updatedAt = loadLocalMeta().updatedAt || updatedAt;
+        render();
+      }
+    });
+
+    document.addEventListener("visibilitychange", () => {
+      if (document.visibilityState === "visible") pullRemote();
+    });
+
     if (!SpeechRecognition) {
       els.voiceBtn.disabled = true;
       els.voiceHint.textContent =
@@ -60,9 +88,29 @@
     }
 
     render();
+    setSyncStatus("Connecting…");
+    syncApi = await resolveSyncApi();
+    await pullRemote(true);
+    startPolling();
   }
 
-  function loadTodos() {
+  async function resolveSyncApi() {
+    for (const url of SYNC_API_CANDIDATES) {
+      try {
+        const res = await fetch(url, {
+          method: "GET",
+          headers: { Accept: "application/json" },
+          cache: "no-store",
+        });
+        if (res.ok) return url;
+      } catch {
+        /* try next */
+      }
+    }
+    return null;
+  }
+
+  function loadLocalTodos() {
     try {
       const raw = localStorage.getItem(STORAGE_KEY);
       if (!raw) return [];
@@ -73,8 +121,110 @@
     }
   }
 
-  function saveTodos() {
-    localStorage.setItem(STORAGE_KEY, JSON.stringify(todos));
+  function loadLocalMeta() {
+    try {
+      const raw = localStorage.getItem(META_KEY);
+      return raw ? JSON.parse(raw) : {};
+    } catch {
+      return {};
+    }
+  }
+
+  function persistLocal() {
+    try {
+      localStorage.setItem(STORAGE_KEY, JSON.stringify(todos));
+      localStorage.setItem(
+        META_KEY,
+        JSON.stringify({ updatedAt })
+      );
+    } catch {
+      setSyncStatus("Storage full — couldn’t save on this device");
+      showToast("Couldn’t save on this device");
+    }
+  }
+
+  function queueSave() {
+    updatedAt = Date.now();
+    persistLocal();
+    render();
+    setSyncStatus(syncApi ? "Saving…" : "Saved on this device only");
+    clearTimeout(saveTimer);
+    saveTimer = setTimeout(() => pushRemote(), 280);
+  }
+
+  async function pushRemote() {
+    if (!syncApi || syncing) return;
+    syncing = true;
+    try {
+      const res = await fetch(syncApi, {
+        method: "PUT",
+        headers: { "Content-Type": "application/json", Accept: "application/json" },
+        body: JSON.stringify({ todos, updatedAt }),
+      });
+      if (!res.ok) throw new Error(`HTTP ${res.status}`);
+      const data = await res.json();
+      if (Array.isArray(data.todos)) {
+        todos = data.todos;
+        updatedAt = data.updatedAt || updatedAt;
+        persistLocal();
+        render();
+      }
+      setSyncStatus("Synced across your devices");
+    } catch {
+      setSyncStatus("Offline — saved on this device");
+    } finally {
+      syncing = false;
+    }
+  }
+
+  async function pullRemote(isInitial = false) {
+    if (!syncApi) {
+      setSyncStatus("Saved on this device only");
+      return;
+    }
+    try {
+      const res = await fetch(syncApi, {
+        method: "GET",
+        headers: { Accept: "application/json" },
+        cache: "no-store",
+      });
+      if (!res.ok) throw new Error(`HTTP ${res.status}`);
+      const data = await res.json();
+      const remoteTodos = Array.isArray(data.todos) ? data.todos : [];
+      const remoteUpdatedAt = Number(data.updatedAt) || 0;
+
+      if (remoteUpdatedAt > updatedAt) {
+        todos = remoteTodos;
+        updatedAt = remoteUpdatedAt;
+        persistLocal();
+        render();
+        setSyncStatus("Synced across your devices");
+      } else if (updatedAt > remoteUpdatedAt && todos.length) {
+        await pushRemote();
+      } else {
+        setSyncStatus("Synced across your devices");
+        if (isInitial && !todos.length && remoteTodos.length) {
+          todos = remoteTodos;
+          updatedAt = remoteUpdatedAt;
+          persistLocal();
+          render();
+        }
+      }
+    } catch {
+      setSyncStatus("Offline — using this device");
+    }
+  }
+
+  function startPolling() {
+    clearInterval(pollTimer);
+    if (!syncApi) return;
+    pollTimer = setInterval(() => {
+      if (document.visibilityState === "visible" && !listening) pullRemote();
+    }, 12000);
+  }
+
+  function setSyncStatus(message) {
+    if (els.syncStatus) els.syncStatus.textContent = message;
   }
 
   function todayISO() {
@@ -97,6 +247,7 @@
     const cat = prefill.category || "personal";
     const radio = els.form.querySelector(`input[name="category"][value="${cat}"]`);
     if (radio) radio.checked = true;
+    finalVoiceText = "";
 
     els.sheet.hidden = false;
     els.backdrop.hidden = false;
@@ -105,7 +256,7 @@
   }
 
   function closeSheet() {
-    stopVoice();
+    stopVoice(true);
     els.sheet.hidden = true;
     els.backdrop.hidden = true;
     document.body.style.overflow = "";
@@ -134,35 +285,43 @@
       archivedAt: null,
     });
 
-    saveTodos();
-    render();
+    queueSave();
     closeSheet();
     showToast(`Added to ${CATEGORIES[category].short}`);
   }
 
   function toggleVoice() {
     if (!SpeechRecognition) return;
-    if (listening) {
-      stopVoice();
+    if (listening || wantListening) {
+      stopVoice(true);
+      els.voiceHint.textContent =
+        "Stopped. Edit the text if needed, set a deadline, then Save.";
+      els.voiceHint.classList.remove("is-error");
       return;
     }
     startVoice();
   }
 
   function startVoice() {
+    wantListening = true;
+    finalVoiceText = els.text.value.trim();
+    beginRecognition();
+  }
+
+  function beginRecognition() {
+    if (!wantListening || !SpeechRecognition) return;
+
     recognition = new SpeechRecognition();
     recognition.lang = navigator.language || "en-US";
     recognition.interimResults = true;
-    recognition.continuous = false;
+    recognition.continuous = true;
     recognition.maxAlternatives = 1;
-
-    let finalText = "";
 
     recognition.onstart = () => {
       listening = true;
       els.voiceBtn.setAttribute("aria-pressed", "true");
-      els.voiceLabel.textContent = "Listening… tap to stop";
-      els.voiceHint.textContent = `Speaking into ${CATEGORIES[selectedCategory()].label}…`;
+      els.voiceLabel.textContent = "Listening… say “stop”";
+      els.voiceHint.textContent = `Recording for ${CATEGORIES[selectedCategory()].label}. Say “stop” when finished.`;
       els.voiceHint.classList.remove("is-error");
     };
 
@@ -170,51 +329,83 @@
       let interim = "";
       for (let i = event.resultIndex; i < event.results.length; i += 1) {
         const result = event.results[i];
-        if (result.isFinal) finalText += result[0].transcript;
-        else interim += result[0].transcript;
+        const chunk = result[0].transcript;
+        if (result.isFinal) {
+          finalVoiceText = `${finalVoiceText} ${chunk}`.trim();
+          if (STOP_PATTERN.test(finalVoiceText)) {
+            finalVoiceText = finalVoiceText.replace(STOP_PATTERN, "").trim();
+            els.text.value = finalVoiceText;
+            stopVoice(true);
+            els.voiceHint.textContent =
+              "Got it — set a deadline and tap Save, or keep editing.";
+            els.voiceHint.classList.remove("is-error");
+            return;
+          }
+        } else {
+          interim += chunk;
+        }
       }
-      const combined = `${finalText} ${interim}`.trim();
-      if (combined) els.text.value = combined;
+
+      const live = `${finalVoiceText} ${interim}`.trim();
+      if (STOP_PATTERN.test(live)) {
+        const cleaned = live.replace(STOP_PATTERN, "").trim();
+        els.text.value = cleaned;
+        finalVoiceText = cleaned;
+        stopVoice(true);
+        els.voiceHint.textContent =
+          "Got it — set a deadline and tap Save, or keep editing.";
+        els.voiceHint.classList.remove("is-error");
+        return;
+      }
+      if (live) els.text.value = live;
     };
 
     recognition.onerror = (event) => {
+      if (event.error === "aborted") return;
+      if (event.error === "no-speech" && wantListening) return;
+
       const messages = {
         "not-allowed": "Microphone permission blocked. Allow mic access and try again.",
-        "no-speech": "Didn't catch that — try speaking again.",
+        "no-speech": "Didn’t catch that — try speaking again.",
         network: "Network issue with speech recognition. Try again.",
-        aborted: "Voice input stopped.",
       };
       els.voiceHint.textContent =
         messages[event.error] || `Voice error: ${event.error}`;
       els.voiceHint.classList.add("is-error");
-      stopVoice(false);
+      if (event.error === "not-allowed") stopVoice(true);
     };
 
     recognition.onend = () => {
-      stopVoice(false);
-      if (els.text.value.trim()) {
-        els.voiceHint.textContent =
-          "Got it — set a deadline and tap Save, or keep editing.";
-        els.voiceHint.classList.remove("is-error");
+      listening = false;
+      recognition = null;
+      // Browsers often end continuous sessions early — keep going until user says stop
+      if (wantListening) {
+        window.setTimeout(() => {
+          if (wantListening) beginRecognition();
+        }, 180);
+        return;
       }
+      els.voiceBtn.setAttribute("aria-pressed", "false");
+      els.voiceLabel.textContent = "Start speaking";
     };
 
     try {
       recognition.start();
     } catch {
-      els.voiceHint.textContent = "Could not start voice input. Try again.";
-      els.voiceHint.classList.add("is-error");
-      stopVoice(false);
+      window.setTimeout(() => {
+        if (wantListening) beginRecognition();
+      }, 300);
     }
   }
 
-  function stopVoice(abort = true) {
+  function stopVoice(fromUser = false) {
+    wantListening = false;
     listening = false;
     els.voiceBtn.setAttribute("aria-pressed", "false");
-    els.voiceLabel.textContent = "Speak to add";
+    els.voiceLabel.textContent = "Start speaking";
     if (recognition) {
       try {
-        if (abort) recognition.abort();
+        if (fromUser) recognition.abort();
         else recognition.stop();
       } catch {
         /* ignore */
@@ -229,8 +420,7 @@
     animateLeave(id, () => {
       todo.archived = true;
       todo.archivedAt = Date.now();
-      saveTodos();
-      render();
+      queueSave();
       showToast("Moved to archive");
     });
   }
@@ -240,16 +430,14 @@
     if (!todo) return;
     todo.archived = false;
     todo.archivedAt = null;
-    saveTodos();
-    render();
+    queueSave();
     showToast("Restored");
   }
 
   function deleteTodo(id) {
     animateLeave(id, () => {
       todos = todos.filter((t) => t.id !== id);
-      saveTodos();
-      render();
+      queueSave();
       showToast("Deleted");
     });
   }
@@ -257,8 +445,7 @@
   function clearArchive() {
     if (!todos.some((t) => t.archived)) return;
     todos = todos.filter((t) => !t.archived);
-    saveTodos();
-    render();
+    queueSave();
     showToast("Archive cleared");
   }
 
@@ -299,7 +486,7 @@
     if (deadline === today) return "Due today";
     if (deadline < today) {
       const days = Math.round(
-        (new Date(today) - new Date(deadline)) / (1000 * 60 * 60 * 24)
+        (Date.parse(today) - Date.parse(deadline)) / (1000 * 60 * 60 * 24)
       );
       return days === 1 ? "1 day overdue" : `${days} days overdue`;
     }
@@ -359,9 +546,6 @@
           ? "is-due-soon"
           : "";
 
-    const checkLabel = isArchive ? "Restore todo" : "Mark complete";
-    const deleteLabel = "Delete todo";
-
     return `
       <article class="card ${statusClass}" data-id="${todo.id}">
         <button
@@ -369,7 +553,7 @@
           class="check"
           data-action="${isArchive ? "restore" : "archive"}"
           aria-checked="${isArchive ? "true" : "false"}"
-          aria-label="${checkLabel}"
+          aria-label="${isArchive ? "Restore todo" : "Mark complete"}"
           role="checkbox"
         ></button>
         <div class="card-body">
@@ -380,7 +564,7 @@
           </div>
         </div>
         <div class="card-actions">
-          <button type="button" class="icon-btn" data-action="delete" aria-label="${deleteLabel}">×</button>
+          <button type="button" class="icon-btn" data-action="delete" aria-label="Delete todo">×</button>
         </div>
       </article>
     `;
@@ -392,8 +576,7 @@
       const todo = todos.find((t) => t.id === id);
       if (!todo) return;
 
-      const textEl = card.querySelector(".card-text");
-      textEl.textContent = todo.text;
+      card.querySelector(".card-text").textContent = todo.text;
 
       card.querySelectorAll("[data-action]").forEach((btn) => {
         btn.addEventListener("click", () => {

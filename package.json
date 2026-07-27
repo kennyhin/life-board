@@ -1,0 +1,13 @@
+{
+  "name": "life-board",
+  "private": true,
+  "version": "1.0.0",
+  "scripts": {
+    "dev": "npx netlify dev",
+    "deploy": "npx netlify deploy --prod"
+  },
+  "dependencies": {
+    "@netlify/blobs": "^9.1.2",
+    "@netlify/functions": "^3.0.0"
+  }
+}

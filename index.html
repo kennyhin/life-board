@@ -19,6 +19,7 @@
     <div class="brand-block">
       <p class="brand">Life Board</p>
       <p class="tagline">Personal · PE · Athletics</p>
+      <p class="sync-status" id="sync-status" aria-live="polite">Saving locally…</p>
     </div>
     <button type="button" class="btn btn-primary" id="open-add" aria-label="Add a todo">
       <span class="btn-icon" aria-hidden="true">+</span>
@@ -106,9 +107,9 @@
       <div class="voice-block">
         <button type="button" class="btn btn-voice" id="voice-btn" aria-pressed="false">
           <span class="mic-dot" aria-hidden="true"></span>
-          <span id="voice-label">Speak to add</span>
+          <span id="voice-label">Start speaking</span>
         </button>
-        <p class="voice-hint" id="voice-hint">Pick a category, then speak your todo. We'll fill the text for you.</p>
+        <p class="voice-hint" id="voice-hint">Tap start, speak your todo, then say “stop” (or tap again) when you’re done.</p>
       </div>
 
       <div class="sheet-actions">

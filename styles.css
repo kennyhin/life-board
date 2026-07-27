@@ -106,6 +106,14 @@ button {
   animation: rise-in 0.55s ease 0.06s both;
 }
 
+.sync-status {
+  margin: 0.45rem 0 0;
+  color: var(--ink-soft);
+  font-size: 0.78rem;
+  font-weight: 600;
+  animation: rise-in 0.55s ease 0.1s both;
+}
+
 .btn {
   display: inline-flex;
   align-items: center;
