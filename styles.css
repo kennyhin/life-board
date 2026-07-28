@@ -391,6 +391,48 @@ body.is-dragging-todo {
   gap: 0.75rem;
 }
 
+.deadline-default,
+.deadline-picker {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 0.75rem;
+  padding: 0.7rem 0.85rem;
+  border: 1px solid var(--line);
+  border-radius: 14px;
+  background: #fffdf8;
+}
+
+.deadline-default[hidden],
+.deadline-picker[hidden] {
+  display: none;
+}
+
+.deadline-default-text {
+  margin: 0;
+  color: var(--muted);
+  font-size: 0.95rem;
+  font-weight: 600;
+}
+
+.deadline-picker input[type="date"] {
+  flex: 1;
+  border: none;
+  background: transparent;
+  padding: 0;
+  box-shadow: none;
+}
+
+.deadline-picker input[type="date"]:focus {
+  box-shadow: none;
+}
+
+.btn-small {
+  min-height: 2.1rem;
+  padding: 0.35rem 0.8rem;
+  font-size: 0.82rem;
+}
+
 .inline-check {
   display: inline-flex;
   align-items: center;
@@ -405,10 +447,6 @@ body.is-dragging-todo {
   width: 1rem;
   height: 1rem;
   accent-color: var(--ink);
-}
-
-input[type="date"][hidden] {
-  display: none;
 }
 
 .card-actions {

@@ -10,7 +10,7 @@
   <link rel="preconnect" href="https://fonts.googleapis.com" />
   <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
   <link href="https://fonts.googleapis.com/css2?family=Fraunces:opsz,wght@9..144,500;9..144,700&family=Manrope:wght@400;500;600;700&display=swap" rel="stylesheet" />
-  <link rel="stylesheet" href="styles.css" />
+  <link rel="stylesheet" href="styles.css?v=3" />
 </head>
 <body>
   <div class="bg-wash" aria-hidden="true"></div>
@@ -99,15 +99,16 @@
         </div>
       </fieldset>
 
-      <div class="field">
-        <div class="field-label-row">
-          <span class="field-label">Deadline</span>
-          <label class="inline-check">
-            <input type="checkbox" id="add-deadline" />
-            <span>Add deadline</span>
-          </label>
+      <div class="field" id="deadline-field">
+        <span class="field-label">Deadline</span>
+        <div class="deadline-default" id="deadline-default">
+          <p class="deadline-default-text">No deadline</p>
+          <button type="button" class="btn btn-ghost btn-small" id="add-deadline-btn">Add deadline</button>
         </div>
-        <input type="date" id="todo-deadline" name="deadline" hidden />
+        <div class="deadline-picker" id="deadline-picker" hidden>
+          <input type="date" id="todo-deadline" name="deadline" />
+          <button type="button" class="btn btn-ghost btn-small" id="remove-deadline-btn">Remove</button>
+        </div>
       </div>
 
       <div class="voice-block">
@@ -127,6 +128,6 @@
 
   <div class="toast" id="toast" role="status" aria-live="polite" hidden></div>
 
-  <script src="app.js"></script>
+  <script src="app.js?v=3"></script>
 </body>
 </html>

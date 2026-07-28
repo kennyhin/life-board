@@ -27,7 +27,10 @@
     form: document.getElementById("add-form"),
     text: document.getElementById("todo-text"),
     deadline: document.getElementById("todo-deadline"),
-    addDeadline: document.getElementById("add-deadline"),
+    deadlineDefault: document.getElementById("deadline-default"),
+    deadlinePicker: document.getElementById("deadline-picker"),
+    addDeadlineBtn: document.getElementById("add-deadline-btn"),
+    removeDeadlineBtn: document.getElementById("remove-deadline-btn"),
     voiceBtn: document.getElementById("voice-btn"),
     voiceLabel: document.getElementById("voice-label"),
     voiceHint: document.getElementById("voice-hint"),
@@ -50,21 +53,21 @@
   let pollTimer = null;
   let syncing = false;
   let dragState = null;
+  let wantsDeadline = false;
 
   init();
 
   async function init() {
-    els.deadline.value = "";
     els.deadline.min = todayISO();
-    els.addDeadline.checked = false;
-    syncDeadlineField();
+    setDeadlineMode(false);
 
     els.openAdd.addEventListener("click", () => openSheet());
     els.closeSheet.addEventListener("click", closeSheet);
     els.cancelAdd.addEventListener("click", closeSheet);
     els.backdrop.addEventListener("click", closeSheet);
     els.form.addEventListener("submit", onSubmit);
-    els.addDeadline.addEventListener("change", syncDeadlineField);
+    els.addDeadlineBtn.addEventListener("click", () => setDeadlineMode(true));
+    els.removeDeadlineBtn.addEventListener("click", () => setDeadlineMode(false));
     els.voiceBtn.addEventListener("click", toggleVoice);
     els.archiveToggle.addEventListener("click", toggleArchive);
     els.clearArchive.addEventListener("click", clearArchive);
@@ -248,12 +251,11 @@
       : `t_${Date.now()}_${Math.random().toString(36).slice(2, 8)}`;
   }
 
-  function syncDeadlineField() {
-    const wantsDeadline = els.addDeadline.checked;
-    els.deadline.hidden = !wantsDeadline;
-    els.deadline.disabled = !wantsDeadline;
-    els.deadline.required = wantsDeadline;
-    if (wantsDeadline) {
+  function setDeadlineMode(enabled) {
+    wantsDeadline = enabled;
+    els.deadlineDefault.hidden = enabled;
+    els.deadlinePicker.hidden = !enabled;
+    if (enabled) {
       if (!els.deadline.value) els.deadline.value = todayISO();
     } else {
       els.deadline.value = "";
@@ -263,13 +265,11 @@
   function openSheet(prefill = {}) {
     els.form.reset();
     if (prefill.deadline) {
-      els.addDeadline.checked = true;
       els.deadline.value = prefill.deadline;
+      setDeadlineMode(true);
     } else {
-      els.addDeadline.checked = false;
-      els.deadline.value = "";
+      setDeadlineMode(false);
     }
-    syncDeadlineField();
     els.text.value = prefill.text || "";
     const cat = prefill.category || "personal";
     const radio = els.form.querySelector(`input[name="category"][value="${cat}"]`);
@@ -297,12 +297,12 @@
   function onSubmit(e) {
     e.preventDefault();
     const text = els.text.value.trim();
-    const deadline = els.addDeadline.checked ? els.deadline.value || null : null;
+    const deadline = wantsDeadline ? els.deadline.value || null : null;
     const category = selectedCategory();
 
     if (!text) return;
-    if (els.addDeadline.checked && !deadline) {
-      showToast("Pick a deadline or uncheck Add deadline");
+    if (wantsDeadline && !deadline) {
+      showToast("Pick a deadline or tap Remove");
       return;
     }
 
