@@ -10,7 +10,7 @@
   <link rel="preconnect" href="https://fonts.googleapis.com" />
   <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
   <link href="https://fonts.googleapis.com/css2?family=Fraunces:opsz,wght@9..144,500;9..144,700&family=Manrope:wght@400;500;600;700&display=swap" rel="stylesheet" />
-  <link rel="stylesheet" href="styles.css?v=4" />
+  <link rel="stylesheet" href="styles.css?v=5" />
 </head>
 <body>
   <div class="bg-wash" aria-hidden="true"></div>
@@ -30,24 +30,39 @@
   <main class="board" id="board">
     <section class="column" data-category="personal" aria-labelledby="col-personal">
       <header class="column-head">
-        <h2 id="col-personal">Personal</h2>
-        <span class="count" data-count="personal">0</span>
+        <div class="column-title">
+          <h2 id="col-personal">Personal</h2>
+          <span class="count" data-count="personal">0</span>
+        </div>
+        <button type="button" class="btn btn-column-add" data-add-category="personal" aria-label="Add to Personal">
+          <span aria-hidden="true">+</span> Add
+        </button>
       </header>
       <div class="card-list" data-list="personal"></div>
     </section>
 
     <section class="column" data-category="pe" aria-labelledby="col-pe">
       <header class="column-head">
-        <h2 id="col-pe">Physical Education</h2>
-        <span class="count" data-count="pe">0</span>
+        <div class="column-title">
+          <h2 id="col-pe">Physical Education</h2>
+          <span class="count" data-count="pe">0</span>
+        </div>
+        <button type="button" class="btn btn-column-add" data-add-category="pe" aria-label="Add to Physical Education">
+          <span aria-hidden="true">+</span> Add
+        </button>
       </header>
       <div class="card-list" data-list="pe"></div>
     </section>
 
     <section class="column" data-category="athletics" aria-labelledby="col-athletics">
       <header class="column-head">
-        <h2 id="col-athletics">Athletics</h2>
-        <span class="count" data-count="athletics">0</span>
+        <div class="column-title">
+          <h2 id="col-athletics">Athletics</h2>
+          <span class="count" data-count="athletics">0</span>
+        </div>
+        <button type="button" class="btn btn-column-add" data-add-category="athletics" aria-label="Add to Athletics">
+          <span aria-hidden="true">+</span> Add
+        </button>
       </header>
       <div class="card-list" data-list="athletics"></div>
     </section>
@@ -128,6 +143,6 @@
 
   <div class="toast" id="toast" role="status" aria-live="polite" hidden></div>
 
-  <script src="app.js?v=4"></script>
+  <script src="app.js?v=5"></script>
 </body>
 </html>

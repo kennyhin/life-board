@@ -65,6 +65,11 @@
     setDeadlineMode(false);
 
     els.openAdd.addEventListener("click", () => openSheet());
+    document.querySelectorAll("[data-add-category]").forEach((btn) => {
+      btn.addEventListener("click", () => {
+        openSheet({ category: btn.dataset.addCategory });
+      });
+    });
     els.closeSheet.addEventListener("click", closeSheet);
     els.cancelAdd.addEventListener("click", closeSheet);
     els.backdrop.addEventListener("click", closeSheet);
