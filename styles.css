@@ -343,6 +343,14 @@ body.is-dragging-todo {
 
 .card-body {
   min-width: 0;
+  cursor: pointer;
+  border-radius: 10px;
+}
+
+.card-body:hover .card-text {
+  text-decoration: underline;
+  text-decoration-thickness: 1px;
+  text-underline-offset: 3px;
 }
 
 .card-text {

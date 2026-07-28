@@ -25,6 +25,8 @@
     closeSheet: document.getElementById("close-sheet"),
     cancelAdd: document.getElementById("cancel-add"),
     form: document.getElementById("add-form"),
+    sheetTitle: document.getElementById("sheet-title"),
+    saveTodo: document.getElementById("save-todo"),
     text: document.getElementById("todo-text"),
     deadline: document.getElementById("todo-deadline"),
     deadlineDefault: document.getElementById("deadline-default"),
@@ -54,6 +56,7 @@
   let syncing = false;
   let dragState = null;
   let wantsDeadline = false;
+  let editingId = null;
 
   init();
 
@@ -264,6 +267,8 @@
 
   function openSheet(prefill = {}) {
     els.form.reset();
+    editingId = prefill.id || null;
+
     if (prefill.deadline) {
       els.deadline.value = prefill.deadline;
       setDeadlineMode(true);
@@ -276,14 +281,31 @@
     if (radio) radio.checked = true;
     finalVoiceText = "";
 
+    els.sheetTitle.textContent = editingId ? "Edit todo" : "New todo";
+    els.saveTodo.textContent = editingId ? "Save changes" : "Save todo";
+
     els.sheet.hidden = false;
     els.backdrop.hidden = false;
     document.body.style.overflow = "hidden";
     requestAnimationFrame(() => els.text.focus());
   }
 
+  function openEdit(id) {
+    const todo = todos.find((t) => t.id === id);
+    if (!todo) return;
+    openSheet({
+      id: todo.id,
+      text: todo.text,
+      category: todo.category,
+      deadline: todo.deadline || null,
+    });
+  }
+
   function closeSheet() {
     stopVoice(true);
+    editingId = null;
+    els.sheetTitle.textContent = "New todo";
+    els.saveTodo.textContent = "Save todo";
     els.sheet.hidden = true;
     els.backdrop.hidden = true;
     document.body.style.overflow = "";
@@ -303,6 +325,18 @@
     if (!text) return;
     if (wantsDeadline && !deadline) {
       showToast("Pick a deadline or tap Remove");
+      return;
+    }
+
+    if (editingId) {
+      const todo = todos.find((t) => t.id === editingId);
+      if (!todo) return;
+      todo.text = text;
+      todo.category = category;
+      todo.deadline = deadline;
+      queueSave();
+      closeSheet();
+      showToast("Todo updated");
       return;
     }
 
@@ -672,6 +706,7 @@
           </div>
         </div>
         <div class="card-actions">
+          <button type="button" class="icon-btn" data-action="edit" aria-label="Edit todo">✎</button>
           <button type="button" class="icon-btn" data-action="delete" aria-label="Delete todo">×</button>
         </div>
       </article>
@@ -686,12 +721,18 @@
 
       card.querySelector(".card-text").textContent = todo.text;
 
+      card.querySelector(".card-body")?.addEventListener("click", () => {
+        openEdit(id);
+      });
+
       card.querySelectorAll("[data-action]").forEach((btn) => {
-        btn.addEventListener("click", () => {
+        btn.addEventListener("click", (e) => {
+          e.stopPropagation();
           const action = btn.dataset.action;
           if (action === "archive") archiveTodo(id);
           if (action === "restore") restoreTodo(id);
           if (action === "delete") deleteTodo(id);
+          if (action === "edit") openEdit(id);
         });
       });
 
