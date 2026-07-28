@@ -407,9 +407,8 @@ body.is-dragging-todo {
   accent-color: var(--ink);
 }
 
-input[type="date"]:disabled {
-  opacity: 0.45;
-  cursor: not-allowed;
+input[type="date"][hidden] {
+  display: none;
 }
 
 .card-actions {

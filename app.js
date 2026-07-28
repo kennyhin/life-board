@@ -27,7 +27,7 @@
     form: document.getElementById("add-form"),
     text: document.getElementById("todo-text"),
     deadline: document.getElementById("todo-deadline"),
-    noDeadline: document.getElementById("no-deadline"),
+    addDeadline: document.getElementById("add-deadline"),
     voiceBtn: document.getElementById("voice-btn"),
     voiceLabel: document.getElementById("voice-label"),
     voiceHint: document.getElementById("voice-hint"),
@@ -54,8 +54,9 @@
   init();
 
   async function init() {
-    els.deadline.value = todayISO();
+    els.deadline.value = "";
     els.deadline.min = todayISO();
+    els.addDeadline.checked = false;
     syncDeadlineField();
 
     els.openAdd.addEventListener("click", () => openSheet());
@@ -63,7 +64,7 @@
     els.cancelAdd.addEventListener("click", closeSheet);
     els.backdrop.addEventListener("click", closeSheet);
     els.form.addEventListener("submit", onSubmit);
-    els.noDeadline.addEventListener("change", syncDeadlineField);
+    els.addDeadline.addEventListener("change", syncDeadlineField);
     els.voiceBtn.addEventListener("click", toggleVoice);
     els.archiveToggle.addEventListener("click", toggleArchive);
     els.clearArchive.addEventListener("click", clearArchive);
@@ -248,27 +249,25 @@
   }
 
   function syncDeadlineField() {
-    const none = els.noDeadline.checked;
-    els.deadline.disabled = none;
-    els.deadline.required = false;
-    if (none) {
+    const wantsDeadline = els.addDeadline.checked;
+    els.deadline.hidden = !wantsDeadline;
+    els.deadline.disabled = !wantsDeadline;
+    els.deadline.required = wantsDeadline;
+    if (wantsDeadline) {
+      if (!els.deadline.value) els.deadline.value = todayISO();
+    } else {
       els.deadline.value = "";
-    } else if (!els.deadline.value) {
-      els.deadline.value = todayISO();
     }
   }
 
   function openSheet(prefill = {}) {
     els.form.reset();
     if (prefill.deadline) {
-      els.noDeadline.checked = false;
+      els.addDeadline.checked = true;
       els.deadline.value = prefill.deadline;
-    } else if (prefill.deadline === null) {
-      els.noDeadline.checked = true;
-      els.deadline.value = "";
     } else {
-      els.noDeadline.checked = false;
-      els.deadline.value = todayISO();
+      els.addDeadline.checked = false;
+      els.deadline.value = "";
     }
     syncDeadlineField();
     els.text.value = prefill.text || "";
@@ -298,12 +297,12 @@
   function onSubmit(e) {
     e.preventDefault();
     const text = els.text.value.trim();
-    const deadline = els.noDeadline.checked ? null : els.deadline.value || null;
+    const deadline = els.addDeadline.checked ? els.deadline.value || null : null;
     const category = selectedCategory();
 
     if (!text) return;
-    if (!els.noDeadline.checked && !deadline) {
-      showToast("Pick a deadline or choose No deadline");
+    if (els.addDeadline.checked && !deadline) {
+      showToast("Pick a deadline or uncheck Add deadline");
       return;
     }
 
